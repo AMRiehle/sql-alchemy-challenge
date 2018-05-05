@@ -53,17 +53,17 @@ def temp_values():
 @app.route("/api/v1.0/<start>")
 def temp_agr_start(start):
     """Return the station names as json"""
-    max_res = session.query(func.max(Measurement.tobs)).filter(Measurement.date >= start).first()[0]
     min_res = session.query(func.min(Measurement.tobs)).filter(Measurement.date >= start).first()[0]
     avg_res = session.query(func.avg(Measurement.tobs)).filter(Measurement.date >= start).first()[0]
-    results = {'max res':max_res, 'min res':min_res, 'avg res':avg_res}
+    max_res = session.query(func.max(Measurement.tobs)).filter(Measurement.date >= start).first()[0]
+    results = {'TMIN':min_res, 'TAVG':avg_res, 'TMAX':max_res}
     return jsonify(results)
 
 @app.route("/api/v1.0/<start>/<end>")
 def temp_agr_start_end(start, end):
     """Return the station names as json"""
-    max_res = session.query(func.max(Measurement.tobs)).filter(Measurement.date >= start).filter(Measurement.date <= end).first()[0]
     min_res = session.query(func.min(Measurement.tobs)).filter(Measurement.date >= start).filter(Measurement.date <= end).first()[0]
     avg_res = session.query(func.avg(Measurement.tobs)).filter(Measurement.date >= start).filter(Measurement.date <= end).first()[0]
-    results = {'max res':max_res, 'min res':min_res, 'avg res':avg_res}
+    max_res = session.query(func.max(Measurement.tobs)).filter(Measurement.date >= start).filter(Measurement.date <= end).first()[0]
+    results = {'TMIN':min_res, 'TAVG':avg_res, 'TMAX':max_res}
     return jsonify(results)
