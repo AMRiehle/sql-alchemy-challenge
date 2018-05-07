@@ -1,3 +1,7 @@
+
+# Surf's Up: SQL Alchemy Challenge
+GWU Data Analytics Bootcamp Homework 11
+
 ```python
 # Import dependencies
 
@@ -12,14 +16,12 @@ from datetime import date
 from datetime import timedelta
 ```
 
-
 ```python
 # Connect to SQLite database
 
 engine = create_engine("sqlite:///hawaii.sqlite")
 conn = engine.connect()
 ```
-
 
 ```python
 # Automap classes
@@ -28,19 +30,13 @@ Base = automap_base()
 Base.prepare(engine, reflect=True)
 ```
 
-
 ```python
 # Obtain table names
 
 Base.classes.keys()
 ```
 
-
-
-
     ['measurements', 'stations']
-
-
 
 
 ```python
@@ -49,7 +45,6 @@ Base.classes.keys()
 Measurement = Base.classes.measurements
 Station = Base.classes.stations
 ```
-
 
 ```python
 # Initiate session
@@ -153,9 +148,7 @@ plt.tight_layout()
 plt.savefig('Images/precipitation_analysis.png')
 ```
 
-
 ![png](Images/precipitation_analysis.png)
-
 
 
 ```python
@@ -328,10 +321,14 @@ ax.set_axisbelow(True)
 ax.set_xlabel('Temperature (F)')
 ax.set_title('Temperature Measurements in Past Year')
 
+# Set field name in legend
+
+plt.legend(['temperature'])
+
 # Save graph
 
 plt.savefig('Images/temperature_analysis.png')
-plt.legend(['temperature'])
+
 ```
 
 ![png](Images/temperature_analysis.png)
@@ -421,6 +418,260 @@ plt.savefig("Images/average_temps.png")
     The average temperature between July 01, 2017 and July 08, 2017 was 77.46 degress Fahrenheit.
 
 
-
 ![png](Images/average_temps.png)
+
+
+### Optional Recommended Analysis: Total Precipitation by Station for Trip Dates
+
+
+```python
+def prcp_tots_func(start_date, end_date):
+    
+# Declare global variables
+    
+    global grouped_prcp_df
+    
+# Calculate dates one year before declared start and end dates
+    
+    start_date = date(*map(int, start_date.split('-')))
+    start_date = start_date - timedelta(days=365)
+    start_date = start_date.strftime('%Y-%m-%d')
+    end_date = date(*map(int, end_date.split('-')))
+    end_date = end_date - timedelta(days=365)
+    end_date = end_date.strftime('%Y-%m-%d')
+
+# Query SQLite database to obtain precipitation values one year before trip date range
+    
+    prcp_tot_df = pd.read_sql(f'SELECT station, prcp FROM measurements WHERE date BETWEEN "{start_date}" AND "{end_date}"', conn)
+
+# Group dataframe by station and sum precipitation values
+    
+    grouped_prcp_df = prcp_tot_df.groupby(['station']).sum()
+
+# Run function on declared start and end dates
+
+prcp_tots_func('2018-07-01', '2018-07-08')
+
+# Print grouped dataframe
+
+grouped_prcp_df
+```
+
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>prcp</th>
+    </tr>
+    <tr>
+      <th>station</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>USC00513117</th>
+      <td>0.31</td>
+    </tr>
+    <tr>
+      <th>USC00514830</th>
+      <td>0.06</td>
+    </tr>
+    <tr>
+      <th>USC00516128</th>
+      <td>1.34</td>
+    </tr>
+    <tr>
+      <th>USC00519281</th>
+      <td>0.64</td>
+    </tr>
+    <tr>
+      <th>USC00519397</th>
+      <td>0.12</td>
+    </tr>
+    <tr>
+      <th>USC00519523</th>
+      <td>0.02</td>
+    </tr>
+  </tbody>
+</table>
+
+### Optional Recommended Analysis: Normal Temperatures for Trip Dates
+
+
+```python
+# Create function to capture normal values between start and end dates inclusive and convert them to lists
+
+def daily_normals(start_date, end_date):
+    
+# Declare global variables
+    
+    global norms_df
+    global short_dates_df
+    global date_range
+    
+# Turn start and end dates into datetime objects
+    
+    start_date = date(*map(int, start_date.split('-')))
+    end_date = date(*map(int, end_date.split('-')))
+    
+# Calculate date one year before end date
+    
+    one_year_before_end_date = end_date - timedelta(days=365)
+    
+# Extract month and day number from start date
+    
+    new_start_date = start_date.strftime('-%m-%d')
+
+# Query SQLite database to gather all rows that have the same day and month as the start date but are at least one year before the start date 
+    
+    agg_df = pd.read_sql(f'SELECT * FROM measurements WHERE date LIKE "%{new_start_date}"', conn)
+
+# Group that dataframe by year
+    
+    grouped_agg_df = agg_df.groupby(['date'])
+
+# Create and initialize lists for normal values
+    
+    date_range = [start_date.strftime('%Y-%m-%d')]
+    short_dates = [start_date.strftime('%m-%d')]
+    min_norms = [grouped_agg_df['tobs'].min().mean()]
+    max_norms = [grouped_agg_df['tobs'].max().mean()]
+    avg_norms = [grouped_agg_df['tobs'].mean().mean()]
+
+# Gather dates and normal data values for dates between day after start date and end date inclusive
+    
+    while start_date < end_date:
+        start_date = start_date + timedelta(days=1)
+        date_range.append(start_date.strftime('%Y-%m-%d'))
+        short_dates.append(start_date.strftime('%m-%d'))
+        new_start_date = start_date.strftime('-%m-%d')
+        agg_df = pd.read_sql(f'SELECT * FROM measurements WHERE date LIKE "%{new_start_date}" AND date <= "{one_year_before_end_date}"', conn)
+        grouped_agg_df = agg_df.groupby(['date'])
+        min_norms.append(grouped_agg_df['tobs'].min().mean())
+        max_norms.append(grouped_agg_df['tobs'].max().mean())
+        avg_norms.append(grouped_agg_df['tobs'].mean().mean())
+
+# Create dataframe using normal values for all dates between start and end dates inclusive
+        
+    norms_dict = {'date':date_range, 'min':min_norms, 'max':max_norms, 'avg':avg_norms}
+    norms_df = pd.DataFrame(norms_dict)
+    
+# Set index of normal values dataframe as date
+    
+    norms_df = norms_df.set_index('date')
+    
+# Create dataframe using normal values with shortened dates for all dates between start and end dates inclusive
+        
+    short_dates_dict = {'date':short_dates, 'min':min_norms, 'max':max_norms, 'avg':avg_norms}
+    short_dates_df = pd.DataFrame(short_dates_dict)
+    
+# Set index of normal values dataframe with shortened dates as date
+    
+    short_dates_df = short_dates_df.set_index('date')
+
+# Declare start and end dates and apply daily normals function
+    
+daily_normals('2018-07-01', '2018-07-08')
+
+# Print dataframe with shortened dates
+
+short_dates_df
+```
+
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>avg</th>
+      <th>max</th>
+      <th>min</th>
+    </tr>
+    <tr>
+      <th>date</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>07-01</th>
+      <td>75.298958</td>
+      <td>78.750</td>
+      <td>70.750</td>
+    </tr>
+    <tr>
+      <th>07-02</th>
+      <td>75.788542</td>
+      <td>79.125</td>
+      <td>71.500</td>
+    </tr>
+    <tr>
+      <th>07-03</th>
+      <td>75.203423</td>
+      <td>78.250</td>
+      <td>71.625</td>
+    </tr>
+    <tr>
+      <th>07-04</th>
+      <td>76.866815</td>
+      <td>79.750</td>
+      <td>73.750</td>
+    </tr>
+    <tr>
+      <th>07-05</th>
+      <td>74.974702</td>
+      <td>78.500</td>
+      <td>71.250</td>
+    </tr>
+    <tr>
+      <th>07-06</th>
+      <td>74.963839</td>
+      <td>79.000</td>
+      <td>71.250</td>
+    </tr>
+    <tr>
+      <th>07-07</th>
+      <td>75.003770</td>
+      <td>78.250</td>
+      <td>71.250</td>
+    </tr>
+    <tr>
+      <th>07-08</th>
+      <td>75.735863</td>
+      <td>79.250</td>
+      <td>71.375</td>
+    </tr>
+  </tbody>
+</table>
+
+```python
+# Create plot using values from daily normals function
+
+ax = norms_df.plot(kind='area', stacked=False, rot=45, colors=['y', 'tan', 'lightsalmon'])
+
+# Set x-ticks and x-tick labels
+
+ax.xaxis.set_ticks(np.arange(len(date_range)))
+x_ticklabels = date_range
+ax.xaxis.set_ticklabels(x_ticklabels)
+
+# Set y-axis to use every other tick and tick label
+
+y_ticks = ax.yaxis.get_ticklocs()
+ax.yaxis.set_ticks(y_ticks[::2])
+
+# Set labels for x- and y-axis and title for chart
+
+ax.set_ylabel('Temperature (F)')
+ax.set_xlabel('Date')
+ax.set_title('Temperature Norms', fontweight='bold')
+
+# Save chart as PNG
+
+plt.savefig("Images/temperature_norms.png")
+```
+
+![png](Images/temperature_norms.png)
 
